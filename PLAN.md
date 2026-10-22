@@ -198,10 +198,17 @@ Run exactly ONE task from your plan with the agent, under the guardrail, through
 its gate. Any task whose dependencies are done qualifies, including the
 smallest one.
 
-**The takeover point.** Write this before you start the run. A concrete,
-conditional statement of when you would stop the agent and write the code
-yourself. "If something looks wrong" does not count. Name the trigger and name
-what you would do.
+**The takeover point.** The run is T1, in Manual mode, so every edit and
+command reaches me before it runs. I stop the agent the first time it crosses
+T1's declared scope. That means it asks to edit a file, or to run a command
+that writes one, outside `core-domain/src/main/java/edu/cmu/cs214/campusreserve/core/events/`,
+`notifications/src/main/`, and new test files under `core-domain/src/test/`
+and `notifications/src/test/`; or it asks to change a shipped test; or it tries
+to make a locked tree writable again (`chmod`, `guardrails/unlock.sh`). Then I
+deny that call, end the run, `git restore` any tracked file it already changed
+outside the scope (and delete any new one), and write the rest of T1 myself. I run
+`git add -N . && git diff --stat` after every agent turn that edits files, so
+a change that slipped past a prompt shows up there.
 
 **The evidence.** Name the task from Milestone 1. Paste the result line of its
 gate command (run it without `-q` so the line is in the output) and the result

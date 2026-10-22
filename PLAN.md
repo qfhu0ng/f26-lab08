@@ -175,14 +175,20 @@ differently named variable.
 
 ## Milestone 2: The guardrail
 
-Pick one recipe from `guardrails/README.md`. Configure it, then prove it binds.
+**The recipe.** Recipe C, the filesystem lockdown. `guardrails/protected-trees.txt`
+lists `billing`, `cli`, and `accounts`, the three modules Milestone 1 puts out
+of scope. `guardrails/lockdown.sh` makes `billing/src`, `billing/pom.xml`,
+`cli/src`, `cli/pom.xml`, `accounts/src`, and `accounts/pom.xml` read-only
+(`-r--r--r--`) and leaves every `target/` writable. With the lock on,
+`mvn -B clean test` still ends in `BUILD SUCCESS` with 418 tests.
 
-**The recipe.** Which one you picked, the exact paths or trees it covers, and
-one line on what it cannot catch.
+**What it cannot catch:** a wrong edit inside the trees I left open, including
+`analytics/campusreserve_analytics/revenue.py`, which this recipe cannot lock
+because `analytics/` has no `src/`, and an agent with a shell can undo the lock
+with `chmod -R u+w`.
 
-**The captured block.** Paste the excerpt of the agent's own turn showing what
-you asked it to do, its tool call, and the block the guardrail returned. A bare
-terminal paste with no agent turn around it does not show the boundary binding.
+**The captured block.** Pending. To be captured in a Manual-mode Claude Code
+session started at the repository root.
 
 ---
 

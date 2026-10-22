@@ -9,4 +9,10 @@
 # this repository. lockdown.sh locks each entry's src/ directory and its
 # pom.xml, and leaves target/ writable so every gate still runs while locked.
 
-MODULE-YOU-ARE-NOT-TOUCHING
+# Out of scope in PLAN.md Milestone 1. Each reason is a CHANGE-REQUEST.md line.
+# billing: "The price does not change." / "Billing is not part of this change request."
+billing
+# cli: "Nothing in the CLI."
+cli
+# accounts: "Nothing in account management."
+accounts

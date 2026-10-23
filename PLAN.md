@@ -229,19 +229,125 @@ outside the scope (and delete any new one), and write the rest of T1 myself. I r
 `git add -N . && git diff --stat` after every agent turn that edits files, so
 a change that slipped past a prompt shows up there.
 
-**The evidence.** Name the task from Milestone 1. Paste the result line of its
-gate command (run it without `-q` so the line is in the output) and the result
-line of one `mvn -B clean test` run after the task was finished. The module
-gate cannot see a cross-module compile break on a warm tree. A cold build can,
-and so can CI.
+**The evidence.** Task T1, "The owner is told what changed", run with the lock
+on.
 
-**The diff.** The files the agent changed, and how each one maps to that task's
-declared scope (plain `git diff` leaves out new files, but
-`git add -N . && git diff --stat` includes them). Note anything it touched that
-you did not expect, including any shipped test. Then quote the one line you
-read hardest and say what you were checking for.
+The gate, `mvn -B -pl notifications -am test` (core-domain was 167 and
+notifications was 41 before the task):
 
-**The refuter.** What you gave it and what you asked it to do (paste the
-brief). Then the one finding you settled, and how (the new failing test with
-its red run, or the evidence that dismissed it). If nothing it reported held
-up, say how you checked its strongest claim.
+```
+[INFO] Tests run: 171, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 44, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+```
+
+The closing `mvn -B clean test`, every module `SUCCESS`, 425 Java tests in all
+(171, 63, 44, 19, 19, 78, 31). `pytest` from `analytics/` is unchanged at 137
+passed.
+
+```
+[INFO] BUILD SUCCESS
+```
+
+**The diff.** `git add -N . && git diff --stat` lists 9 files, 239 insertions
+and 3 deletions, all inside T1's declared scope:
+
+| File | Change | In T1's scope as |
+|---|---|---|
+| `core-domain/.../core/events/BookingModifiedEvent.java` | new | the event |
+| `core-domain/.../core/events/DomainEvent.java` | one line | its `permits` list |
+| `core-domain/src/test/.../core/events/BookingModifiedEventTest.java` | new test | the core-domain test for the event |
+| `notifications/.../NotificationKind.java` | new kind, new `forEvent` case | the message kind |
+| `notifications/.../NotificationService.java` | new `valuesFor` case | the message's values |
+| `notifications/.../templates/BookingModifiedTemplate.java` | new | the wording |
+| `notifications/.../templates/Placeholders.java` | two constants | the previous time and count |
+| `notifications/.../templates/TemplateRegistry.java` | one `register` call | shipped wording for the kind |
+| `notifications/src/test/.../BookingModifiedNotificationTest.java` | new test | the notifications test |
+
+No shipped test changed (no modified file under any `src/test/`), nothing under
+the locked trees changed, and the rule 3 and rule 4 audits print what they
+printed before the task. One thing the brief did not ask for:
+`BookingModifiedEvent.of` refuses a previous and a current booking with
+different ids.
+
+The line I read hardest, in `NotificationService.valuesFor`:
+
+```java
+                Placeholders.PREVIOUS_WHEN, IntervalText.formatUtc(modified.previousInterval()),
+```
+
+I was checking that it reads `previousInterval()`, not `interval()` and not the
+shared `when`, since filling both times from the new interval is the way
+Milestone 1 says T1's gate could stay green while the task is wrong.
+
+**The refuter.** A fresh headless session, `claude -p` from the repository root
+with Claude Opus 5.5 (`claude-opus-5-5`). File edits were allowed, Bash was
+limited to `mvn`, `git`, `chmod`, `rm`, `cp`, and `mv` were denied, and the lock
+was on. It got `CHANGE-REQUEST.md`, the task's diff
+(`git add -N . && git diff`, with `PLAN.md` left out so it did not see the
+writer's reasoning), and T1's one-line scope. The brief:
+
+> You are checking a change you did not write. You get three things and
+> nothing else:
+> 1. The spec: CHANGE-REQUEST.md in this repository.
+> 2. The diff: transcripts/t1.diff.
+> 3. The task's scope, in one line: "A booking-modified domain event carries
+>    the previous and the new interval and attendee count, and publishing it
+>    queues a message to the owner that names both the old and the new details
+>    (clause 6)."
+>
+> Do not read PLAN.md, or anything under transcripts/ other than t1.diff.
+>
+> Find inputs or call sequences where this change does the wrong thing against
+> the spec and that scope. A good place to start is whether the owner's message
+> can ever show the wrong value as old or new, or lose one of them. For each
+> finding, write a new JUnit test that fails, in a new file under
+> core-domain/src/test/ or notifications/src/test/, and run it with
+> `mvn -B -pl notifications -am test`. Do not fix anything, and do not edit any
+> existing file. Report each finding with the test name, the failing assertion,
+> and the spec line it breaks.
+
+It reported three findings, each with a failing test in one of two new probe
+files:
+
+1. `BookingModifiedEvent.of` accepts a previous and a current booking in
+   different rooms, or with different owners.
+2. Over SMS the body is cut from the end, and the template puts the new details
+   after the old ones, so a long body loses the new time and count.
+3. Publishing an event whose old and new values are equal still queues a
+   message.
+
+**Settled: finding 2, reproduced as a failing test.** The refuter's
+`BookingModifiedNotificationReviewTest.anSmsOwnerWithALongNameStillHearsTheNewDetails`
+publishes a modification to an SMS recipient with a 196-character name. That is
+legal: `Identifiers.MAX_TEXT_LENGTH` is 200, `Recipient.greetingName` is the
+name's first word, and `Channel.SMS.fit` keeps the first 317 characters plus
+`...`. Re-run outside the refuter's session, the red run is:
+
+```
+[ERROR]   BookingModifiedNotificationReviewTest.anSmsOwnerWithALongNameStillHearsTheNewDetails:46 Hi Dana-Maria-[...]-Lucia,
+It is now 2026-10-20 ... ==> expected: <true> but was: <false>
+[ERROR] Tests run: 2, Failures: 2, Errors: 0, Skipped: 0
+```
+
+The assertion on the line before it, "It was … for 4 people.", passes. So the
+message keeps the old details and drops the new ones, against clause 6: "The
+owner gets a notification carrying both the old details and the new ones." One
+part of its claim did not hold. It said real booking ids are `bk-` plus a UUID,
+but `CampusReservePlatform` uses `IdGenerator.sequential()` and wires the EMAIL
+channel (5,000 characters), so this bites only a deployment that sends over SMS.
+It is not fixed in this run.
+
+**The other two.** Finding 3 is dismissed by `CHANGE-REQUEST.md` clause 5: a
+modification that changes nothing records "no event in the log", and the
+owner's message is only ever written for a published event, since
+`NotificationService` is a subscriber. Keeping a no-op silent is
+`BookingService`'s job, and it is already in T2's checkpoint ("A no-op records
+nothing"). Finding 1's two tests are red as well. But the event's only producer
+will be T2's `modifyBooking`, which keeps the room and the owner, so it is
+hardening for T2 rather than wrong behavior in T1.
+
+Both probe files were copied to the git-ignored `transcripts/refuter-probes/`
+and deleted from the tree. `git status` then matched its state before the
+refuter ran, and the next `mvn -B clean test` was back to 425 tests and
+`BUILD SUCCESS`.

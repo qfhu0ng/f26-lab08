@@ -2,6 +2,7 @@ package edu.cmu.cs214.campusreserve.notifications;
 
 import edu.cmu.cs214.campusreserve.core.events.BookingCancelledEvent;
 import edu.cmu.cs214.campusreserve.core.events.BookingCreatedEvent;
+import edu.cmu.cs214.campusreserve.core.events.BookingModifiedEvent;
 import edu.cmu.cs214.campusreserve.core.events.DomainEvent;
 import edu.cmu.cs214.campusreserve.core.events.WaitlistPromotedEvent;
 import java.util.Objects;
@@ -22,7 +23,10 @@ public enum NotificationKind {
     BOOKING_CANCELLED("booking-cancelled"),
 
     /** A waitlist entry turned into a booking. */
-    WAITLIST_PROMOTED("waitlist-promoted");
+    WAITLIST_PROMOTED("waitlist-promoted"),
+
+    /** A booking changed its time, its party size, or both. */
+    BOOKING_MODIFIED("booking-modified");
 
     private final String code;
 
@@ -56,6 +60,7 @@ public enum NotificationKind {
             case BookingCreatedEvent ignored -> BOOKING_CONFIRMED;
             case BookingCancelledEvent ignored -> BOOKING_CANCELLED;
             case WaitlistPromotedEvent ignored -> WAITLIST_PROMOTED;
+            case BookingModifiedEvent ignored -> BOOKING_MODIFIED;
         };
     }
 }

@@ -32,7 +32,8 @@ public final class TemplateRegistry {
         return empty()
             .register(new BookingConfirmedTemplate())
             .register(new BookingCancelledTemplate())
-            .register(new WaitlistPromotedTemplate());
+            .register(new WaitlistPromotedTemplate())
+            .register(new BookingModifiedTemplate());
     }
 
     /** Adds a template, replacing any template already held for its kind. */

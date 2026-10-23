@@ -27,6 +27,12 @@ public final class Placeholders {
     /** Where the entry sat on the waiting list before it was promoted. */
     public static final String POSITION = "position";
 
+    /** The interval a modified booking held before the change, written out like {@link #WHEN}. */
+    public static final String PREVIOUS_WHEN = "previousWhen";
+
+    /** How many people a modified booking was for before the change. */
+    public static final String PREVIOUS_ATTENDEES = "previousAttendees";
+
     private Placeholders() {
     }
 }
